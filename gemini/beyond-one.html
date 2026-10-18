@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>《超出一人之力》BEYOND ONE — Generative Motion Film</title>
+  <style>
+    :root {
+      --bg: #07080c;
+      --amber: #f5a623;
+      --cyan: #00e5ff;
+      --crimson: #ff2a54;
+      --silver: #e2e8f0;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #030406;
+      color: var(--silver);
+      font-family: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #stage-wrap {
+      position: relative;
+      width: min(96vw, calc(86vh * 16 / 9));
+      aspect-ratio: 16 / 9;
+      background: var(--bg);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #overlay-start {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 8, 12, 0.82);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 20;
+      transition: opacity 0.4s ease;
+    }
+    #overlay-start.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .title-badge {
+      font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+      font-size: 12px;
+      letter-spacing: 0.25em;
+      color: var(--amber);
+      border: 1px solid rgba(245, 166, 35, 0.4);
+      padding: 6px 14px;
+      text-transform: uppercase;
+    }
+    .start-title {
+      font-size: clamp(28px, 4vw, 52px);
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      color: #ffffff;
+    }
+    .start-sub {
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      max-width: 560px;
+      text-align: center;
+      line-height: 1.7;
+    }
+    .btn-play-hero {
+      margin-top: 12px;
+      background: var(--amber);
+      color: #07080c;
+      border: none;
+      padding: 14px 36px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-play-hero:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(245, 166, 35, 0.45);
+    }
+    #hud-bar {
+      width: min(96vw, calc(86vh * 16 / 9));
+      margin-top: 12px;
+      background: #0b0d13;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 10px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 12px;
+    }
+    .timeline-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #scrubber {
+      flex: 1;
+      accent-color: var(--amber);
+      cursor: pointer;
+      height: 5px;
+    }
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    button.ctrl-btn {
+      background: #141824;
+      color: var(--silver);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 5px 11px;
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    button.ctrl-btn:hover {
+      border-color: var(--amber);
+      color: #fff;
+    }
+    button.ctrl-btn.active {
+      background: rgba(245, 166, 35, 0.18);
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+    button.ctrl-btn.export-btn {
+      background: rgba(0, 229, 255, 0.12);
+      border-color: rgba(0, 229, 255, 0.45);
+      color: var(--cyan);
+    }
+    .status-readout {
+      color: var(--muted);
+      display: flex;
+      gap: 14px;
+    }
+    .status-readout span b {
+      color: var(--silver);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="stage-wrap">
+    <canvas id="film-canvas" width="1920" height="1080"></canvas>
+    <div id="overlay-start">
+      <div class="title-badge">DETERMINISTIC GENERATIVE MOTION FILM // 120 BPM // 60 FPS</div>
+      <div class="start-title">《超出一人之力》</div>
+      <div class="start-sub">
+        为什么要使用 AI？——从一维标尺的认知局限，到高维张拉结构的协同跃迁。<br/>
+        全片由纯代码实时计算几何、动态汉字结构与程序化合成交响电子乐驱动。
+      </div>
+      <button class="btn-play-hero" id="btn-init-play">▶ 启动视听引擎 (84.0s)</button>
+    </div>
+  </div>
+
+  <div id="hud-bar">
+    <div class="timeline-row">
+      <span id="time-display">00:00.00 / 01:24.00</span>
+      <input type="range" id="scrubber" min="0" max="5040" value="0" step="1" />
+      <span id="frame-display">FRAME 0000 / 5040</span>
+    </div>
+    <div class="controls-row">
+      <div class="btn-group">
+        <button class="ctrl-btn" id="btn-toggle">PLAY</button>
+        <button class="ctrl-btn" id="btn-restart">RESTART</button>
+        <button class="ctrl-btn scene-jump" data-sec="0">0.序章:有限</button>
+        <button class="ctrl-btn scene-jump" data-sec="13">1.复杂</button>
+        <button class="ctrl-btn scene-jump" data-sec="26">2.连接</button>
+        <button class="ctrl-btn scene-jump" data-sec="40">3.突破</button>
+        <button class="ctrl-btn scene-jump" data-sec="58">4.判断</button>
+        <button class="ctrl-btn scene-jump" data-sec="70">5.终章:可能性</button>
+      </div>
+      <div class="btn-group">
+        <button class="ctrl-btn" id="btn-res">1080P (切换 4K)</button>
+        <button class="ctrl-btn export-btn" id="btn-export-video">● 录制并导出视频 (.webm/.mp4)</button>
+        <button class="ctrl-btn export-btn" id="btn-export-wav">♪ 导出无损音轨 (.wav)</button>
+      </div>
+      <div class="status-readout">
+        <span>BPM: <b>120.0</b></span>
+        <span>BEAT: <b id="beat-readout">000</b></span>
+        <span>CHAPTER: <b id="chap-readout">PROLOGUE</b></span>
+      </div>
+    </div>
+  </div>
+
+<script>
+/**
+ * ============================================================================
+ * 《超出一人之力》 BEYOND ONE — DETERMINISTIC MOTION GRAPHICS & AUDIO ENGINE
+ * Architecture inspired by mexicat/pdoom-video (ENGINE.md & TREATMENT.md)
+ * ============================================================================
+ */
+
+const CONFIG = {
+  fps: 60,
+  duration: 84.0,
+  totalFrames: 84 * 60, // 5040 frames
+  bpm: 120,
+  spb: 0.5, // seconds per beat
+  width: 1920,
+  height: 1080,
+  colors: {
+    bg: '#07080C',
+    amber: '#F5A623',
+    amberDim: 'rgba(245, 166, 35, 0.25)',
+    cyan: '#00E5FF',
+    cyanDim: 'rgba(0, 229, 255, 0.22)',
+    crimson: '#FF2A54',
+    silver: '#E2E8F0',
+    muted: '#475569',
+    grid: 'rgba(226, 232, 240, 0.045)'
+  }
+};
+
+const CHAPTERS = [
+  { id: 'PROLOGUE', name: '序章 · 有限', start: 0, end: 13 },
+  { id: 'CH1_COMPLEXITY', name: '第一章 · 复杂', start: 13, end: 26 },
+  { id: 'CH2_CONNECTION', name: '第二章 · 连接', start: 26, end: 40 },
+  { id: 'CH3_BREAKTHROUGH', name: '第三章 · 突破', start: 40, end: 58 },
+  { id: 'CH4_JUDGMENT', name: '第四章 · 判断', start: 58, end: 70 },
+  { id: 'EPILOGUE', name: '终章 · 可能性', start: 70, end: 84 }
+];
+
+// ============================================================================
+// 1. DETERMINISTIC MATH & EASING LIBRARY (Pure Functions of Time `t`)
+// ============================================================================
+const MathLib = {
+  clamp: (v, min, max) => Math.max(min, Math.min(max, v)),
+  lerp: (a, b, t) => a + (b - a) * MathLib.clamp(t, 0, 1),
+  invLerp: (a, b, v) => MathLib.clamp((v - a) / (b - a + 1e-9), 0, 1),
+  remap: (inMin, inMax, outMin, outMax, v) =>
+    MathLib.lerp(outMin, outMax, MathLib.invLerp(inMin, inMax, v)),
+  easeOutCubic: (x) => 1 - Math.pow(1 - MathLib.clamp(x, 0, 1), 3),
+  easeInOutCubic: (x) => {
+    x = MathLib.clamp(x, 0, 1);
+    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  },
+  easeOutExpo: (x) => {
+    x = MathLib.clamp(x, 0, 1);
+    return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+  },
+  easeInExpo: (x) => {
+    x = MathLib.clamp(x, 0, 1);
+    return x === 0 ? 0 : Math.pow(2, 10 * x - 10);
+  },
+  // Deterministic damped spring response for step input at t=0
+  spring: (t, freq = 12, damping = 0.28) => {
+    if (t <= 0) return 0;
+    const decay = Math.exp(-damping * freq * t);
+    const omega = freq * Math.sqrt(Math.max(0, 1 - damping * damping));
+    return 1 - decay * (Math.cos(omega * t) + (damping * freq / omega) * Math.sin(omega * t));
+  },
+  // Deterministic pseudo-random hash in [0, 1)
+  hash: (n) => {
+    const s = Math.sin(n * 127.1 + 311.7) * 43758.5453123;
+    return s - Math.floor(s);
+  },
+  hash2D: (x, y) => {
+    const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return s - Math.floor(s);
+  },
+  // Beat envelope helper (returns 1.0 on beat, decays exponentially)
+  beatPulse: (t, subdivision = 1, decay = 8) => {
+    const period = CONFIG.spb / subdivision;
+    const phase = (t % period) / period;
+    return Math.exp(-phase * decay);
+  },
+  // 3D perspective projection onto 2D canvas
+  project3D: (x, y, z, rotX, rotY, rotZ, fov = 950, camDist = 680) => {
+    // Rotate Z
+    let x1 = x * Math.cos(rotZ) - y * Math.sin(rotZ);
+    let y1 = x * Math.sin(rotZ) + y * Math.cos(rotZ);
+    let z1 = z;
+    // Rotate Y
+    let x2 = x1 * Math.cos(rotY) + z1 * Math.sin(rotY);
+    let y2 = y1;
+    let z2 = -x1 * Math.sin(rotY) + z1 * Math.cos(rotY);
+    // Rotate X
+    let x3 = x2;
+    let y3 = y2 * Math.cos(rotX) - z2 * Math.sin(rotX);
+    let z3 = y2 * Math.sin(rotX) + z2 * Math.cos(rotX);
+
+    const depth = Math.max(80, camDist + z3);
+    const scale = fov / depth;
+    return {
+      px: x3 * scale,
+      py: y3 * scale,
+      scale,
+      depth: z3
+    };
+  }
+};
+
+// ============================================================================
+// 2. PRECOMPUTED STRUCTURAL GEOMETRY DATA
+// ============================================================================
+const DATA = {
+  // Prologue fragments of isolated knowledge
+  isolatedTerms: [
+    '微积分', '结构力学', 'Python', '流体边界层', '成本核算',
+    '有限元', '编译原理', '材料疲劳', '热力学', '非线性优化',
+    '拓扑学', '信号处理', '建筑规范', '博弈论', '概率分布', '美学比例'
+  ],
+  // Chapter 1: 6 Orthogonal Domains of a Complex Problem
+  domains: [
+    { name: '结构力学', en: 'STRUCTURAL MECHANICS', metric: 'σ_max ≤ 345 MPa', angle: 0 },
+    { name: '材料疲劳', en: 'MATERIAL FATIGUE', metric: 'N_cycle > 2×10⁶', angle: Math.PI / 3 },
+    { name: '气动风振', en: 'AEROELASTIC FLUTTER', metric: 'V_crit > 62 m/s', angle: (2 * Math.PI) / 3 },
+    { name: '算法寻优', en: 'TOPOLOGY OPTIMIZATION', metric: '∇L(θ) → 0', angle: Math.PI },
+    { name: '造价约束', en: 'COST BOUNDARY', metric: 'Budget ≤ ¥1.2M', angle: (4 * Math.PI) / 3 },
+    { name: '空间美学', en: 'SPATIAL FORM', metric: 'κ(s) C² Continuous', angle: (5 * Math.PI) / 3 }
+  ],
+  // Epilogue Tensegrity Geodesic Dome vertices & struts
+  domeNodes: [],
+  domeEdges: []
+};
+
+// Build a procedural 3D Tensegrity Geodesic Dome for Chapter 2, 4, and Epilogue
+(function buildTensegrityDome() {
+  const rings = 4;
+  const perRing = 12;
+  DATA.domeNodes.push({ x: 0, y: -220, z: 0, ring: 0, idx: 0, label: '方向锚点' });
+  const terms = [
+    '物理定律', '边界条件', '第一性原理', '因果推理', '数学公理', '审美直觉',
+    '跨域映射', '代码生成', '参数仿真', '文献网络', '全局寻优', '并行推演',
+    '结构闭合', '应力校核', '成本收敛', '模态稳定', '形态演化', '认知跃迁'
+  ];
+  let count = 1;
+  for (let r = 1; r <= rings; r++) {
+    const phi = (r / rings) * (Math.PI * 0.48);
+    const radius = 260;
+    const y = -Math.cos(phi) * radius + 30;
+    const ringRad = Math.sin(phi) * radius;
+    for (let i = 0; i < perRing; i++) {
+      const theta = (i / perRing) * Math.PI * 2 + (r % 2) * (Math.PI / perRing);
+      DATA.domeNodes.push({
+        x: Math.cos(theta) * ringRad,
+        y,
+        z: Math.sin(theta) * ringRad,
+        ring: r,
+        idx: count,
+        label: terms[count % terms.length]
+      });
+      count++;
+    }
+  }
+  // Connect rings and tensegrity diagonals
+  for (let i = 1; i < DATA.domeNodes.length; i++) {
+    const n = DATA.domeNodes[i];
+    if (n.ring === 1) {
+      DATA.domeEdges.push([0, i, 'amber']);
+    }
+    // Same ring neighbor
+    const ringStart = 1 + (n.ring - 1) * perRing;
+    const nextInRing = ringStart + ((i - ringStart + 1) % perRing);
+    DATA.domeEdges.push([i, nextInRing, 'cyan']);
+    // Next ring connections
+    if (n.ring < rings) {
+      const nextRingStart = 1 + n.ring * perRing;
+      const offset = i - ringStart;
+      const target1 = nextRingStart + offset;
+      const target2 = nextRingStart + ((offset + perRing - (n.ring % 2)) % perRing);
+      DATA.domeEdges.push([i, target1, 'cyan']);
+      DATA.domeEdges.push([i, target2, 'silver']);
+    }
+  }
+})();
+
+// ============================================================================
+// 3. PROCEDURAL WEB AUDIO SYNTHESIZER & OFFLINE WAV RENDERER
+// ============================================================================
+class ProceduralSoundtrack {
+  constructor() {
+    this.ctx = null;
+    this.lastTriggeredStep = -1;
+  }
+
+  // Synthesize the complete 84-second stereo soundtrack deterministically into an AudioBuffer
+  createOfflineBuffer(sampleRate = 44100) {
+    const totalSamples = Math.floor(CONFIG.duration * sampleRate);
+    const left = new Float32Array(totalSamples);
+    const right = new Float32Array(totalSamples);
+
+    const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+    // Helper: add a note with envelope into stereo buffer
+    const addTone = (startSec, durSec, freq, amp, type, pan = 0) => {
+      const startIdx = Math.max(0, Math.floor(startSec * sampleRate));
+      const endIdx = Math.min(totalSamples, Math.floor((startSec + durSec) * sampleRate));
+      const panL = Math.cos(((pan + 1) * Math.PI) / 4);
+      const panR = Math.sin(((pan + 1) * Math.PI) / 4);
+      let phase = 0;
+      const inc = (2 * Math.PI * freq) / sampleRate;
+
+      for (let i = startIdx; i < endIdx; i++) {
+        const localT = (i - startIdx) / sampleRate;
+        const normT = localT / durSec;
+        let env = 1;
+        if (type === 'tick') {
+          env = Math.exp(-localT * 65);
+        } else if (type === 'kick') {
+          env = Math.exp(-localT * 14);
+        } else if (type === 'pluck') {
+          env = Math.min(1, localT / 0.008) * Math.exp(-localT * 7.5);
+        } else if (type === 'pad') {
+          env = Math.sin(normT * Math.PI) * 0.85;
+        } else if (type === 'alarm') {
+          env = (Math.floor(localT * 16) % 2 === 0 ? 1 : 0.25) * (1 - normT * 0.5);
+        }
+
+        let sig = 0;
+        if (type === 'tick') {
+          sig = Math.sin(phase * 3.5) * Math.sin(phase);
+        } else if (type === 'kick') {
+          const dropFreq = freq * (1 + 2.6 * Math.exp(-localT * 32));
+          phase += (2 * Math.PI * dropFreq) / sampleRate;
+          sig = Math.tanh(Math.sin(phase) * 1.8);
+          left[i] += sig * amp * env;
+          right[i] += sig * amp * env;
+          continue;
+        } else if (type === 'pluck') {
+          sig = Math.sin(phase) + 0.4 * Math.sin(phase * 2) + 0.15 * Math.sin(phase * 3);
+        } else if (type === 'pad') {
+          sig = Math.sin(phase) + 0.5 * Math.sin(phase * 1.003) + 0.25 * Math.sin(phase * 2);
+        } else if (type === 'alarm') {
+          sig = Math.sign(Math.sin(phase)) * 0.6 + Math.sin(phase * 1.414) * 0.4;
+        }
+
+        phase += inc;
+        left[i] += sig * amp * env * panL;
+        right[i] += sig * amp * env * panR;
+      }
+    };
+
+    // 1. Global 16th-note grid (0.125s per step)
+    const stepDur = 0.125;
+    const totalSteps = Math.floor(CONFIG.duration / stepDur);
+
+    const ch2Scale = [60, 64, 67, 71, 74, 76, 79, 83]; // Cmaj9
+    const ch3Arp = [48, 55, 60, 64, 67, 71, 72, 76, 79, 84];
+    const epilogueChords = [
+      [36, 48, 55, 60, 64, 67, 71, 74], // Cmaj9
+      [41, 53, 57, 60, 64, 69, 72, 76], // Fmaj9
+      [38, 50, 57, 62, 65, 69, 72, 76], // Dm9
+      [43, 55, 59, 62, 67, 71, 74, 79]  // G6/9
+    ];
+
+    for (let step = 0; step < totalSteps; step++) {
+      const t = step * stepDur;
+      const isBeat = step % 4 === 0;
+      const beatIdx = Math.floor(step / 4);
+
+      // --- PROLOGUE (0 - 13s): Solitary clock & sub drone ---
+      if (t < 13.0) {
+        if (isBeat) {
+          addTone(t, 0.08, beatIdx % 4 === 0 ? 1800 : 1200, 0.22, 'tick', (beatIdx % 2 === 0 ? -0.3 : 0.3));
+        }
+        if (step % 16 === 0) {
+          addTone(t, 2.0, midiToFreq(36), 0.28, 'pad', 0);
+        }
+        // Collapse sound at 10.5s
+        if (Math.abs(t - 10.5) < 0.01) {
+          addTone(t, 0.8, 55, 0.45, 'kick', 0);
+        }
+      }
+      // --- CHAPTER 1 (13 - 26s): Polyrhythmic tension overload ---
+      else if (t < 25.75) {
+        if (isBeat) {
+          addTone(t, 0.35, 55, 0.38, 'kick', 0);
+        }
+        if (step % 2 === 0) {
+          const dissonantNotes = [60, 61, 66, 67, 72, 73, 78];
+          const note = dissonantNotes[(step * 3) % dissonantNotes.length];
+          addTone(t, 0.18, midiToFreq(note), 0.14, 'pluck', Math.sin(step) * 0.7);
+        }
+        if (t > 20.0) {
+          // Accelerating 16th ticks
+          addTone(t, 0.06, 2200 + (step % 8) * 180, 0.15, 'tick', Math.cos(step) * 0.6);
+        }
+      }
+      // --- CHAPTER 2 (26 - 40s): Orthogonal clarity & Cmaj9 matrix ---
+      else if (t >= 26.0 && t < 40.0) {
+        if (Math.abs(t - 26.0) < 0.01) {
+          // Big resolution impact
+          addTone(t, 1.2, 48, 0.55, 'kick', 0);
+          [48, 60, 64, 67, 71, 74].forEach((m, idx) =>
+            addTone(t, 3.5, midiToFreq(m), 0.12, 'pad', (idx - 2.5) * 0.25)
+          );
+        }
+        if (isBeat) {
+          addTone(t, 0.4, 52, 0.35, 'kick', 0);
+        }
+        const m = ch2Scale[step % ch2Scale.length];
+        addTone(t, 0.28, midiToFreq(m), 0.13, 'pluck', Math.sin(step * 0.8) * 0.5);
+      }
+      // --- CHAPTER 3 (40 - 58s): High-velocity breakthrough arpeggios ---
+      else if (t >= 40.0 && t < 58.0) {
+        if (isBeat) {
+          addTone(t, 0.35, 55, 0.42, 'kick', 0);
+        }
+        if (step % 2 === 1) {
+          addTone(t, 0.05, 3200, 0.09, 'tick', 0.2);
+        }
+        const m = ch3Arp[(step * 2 + Math.floor((t - 40) / 4.5)) % ch3Arp.length];
+        addTone(t, 0.22, midiToFreq(m), 0.15, 'pluck', Math.cos(step * 0.5) * 0.65);
+        if (step % 18 === 0) {
+          // Quadrant transition accent every 2.25s / 4.5s
+          addTone(t, 1.8, midiToFreq(36 + (step % 3) * 5), 0.22, 'pad', 0);
+        }
+      }
+      // --- CHAPTER 4 (58 - 70s): Anomaly glitch, hard stop & human calibration ---
+      else if (t >= 58.0 && t < 70.0) {
+        if (t < 61.5) {
+          // Glitching crimson alarm
+          if (step % 2 === 0) {
+            addTone(t, 0.2, 311 + (step % 5) * 47, 0.24, 'alarm', (step % 4 - 1.5) * 0.4);
+          }
+          if (isBeat) addTone(t, 0.3, 45, 0.4, 'kick', 0);
+        } else if (Math.abs(t - 61.5) < 0.01) {
+          // HARD STOP + Human Amber Calibration Ping!
+          addTone(t, 1.5, 880, 0.35, 'pluck', 0);
+          addTone(t, 1.5, 440, 0.25, 'pluck', 0);
+        } else if (t >= 63.0) {
+          // Re-stabilized warm harmonic progression
+          if (isBeat) {
+            addTone(t, 0.45, 50, 0.38, 'kick', 0);
+            addTone(t, 0.4, midiToFreq(60 + (beatIdx % 4) * 4), 0.16, 'pluck', 0);
+          }
+        }
+      }
+      // --- EPILOGUE (70 - 84s): Grand Tensegrity Polychord & Resolution ---
+      else if (t >= 70.0) {
+        const barIdx = Math.floor((t - 70.0) / 3.0) % epilogueChords.length;
+        if (step % 24 === 0 && t < 80.5) {
+          const chord = epilogueChords[barIdx];
+          chord.forEach((m, i) => {
+            addTone(t, 3.2, midiToFreq(m), 0.095, 'pad', (i / chord.length - 0.5) * 1.2);
+          });
+          addTone(t, 0.8, 45, 0.45, 'kick', 0);
+        }
+        if (t < 79.0 && step % 2 === 0) {
+          const chord = epilogueChords[barIdx];
+          const m = chord[step % chord.length] + 12;
+          addTone(t, 0.35, midiToFreq(m), 0.09, 'pluck', Math.sin(step) * 0.6);
+        }
+        // Final resonant chime at 79.0s
+        if (Math.abs(t - 79.0) < 0.01) {
+          [48, 60, 67, 72, 76, 84].forEach((m, idx) =>
+            addTone(t, 4.8, midiToFreq(m), 0.12, 'pluck', (idx - 2.5) * 0.2)
+          );
+        }
+      }
+    }
+
+    // Soft limiter
+    for (let i = 0; i < totalSamples; i++) {
+      left[i] = Math.tanh(left[i] * 0.95);
+      right[i] = Math.tanh(right[i] * 0.95);
+    }
+
+    return { left, right, sampleRate, totalSamples };
+  }
+
+  initWebAudio() {
+    if (this.ctx) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AudioCtx();
+    const raw = this.createOfflineBuffer(this.ctx.sampleRate);
+    this.audioBuffer = this.ctx.createBuffer(2, raw.totalSamples, raw.sampleRate);
+    this.audioBuffer.getChannelData(0).set(raw.left);
+    this.audioBuffer.getChannelData(1).set(raw.right);
+  }
+
+  playFrom(timeSec) {
+    this.initWebAudio();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.stop();
+    this.sourceNode = this.ctx.createBufferSource();
+    this.sourceNode.buffer = this.audioBuffer;
+    this.destStream = this.ctx.createMediaStreamDestination();
+    this.sourceNode.connect(this.ctx.destination);
+    this.sourceNode.connect(this.destStream);
+    this.sourceNode.start(0, MathLib.clamp(timeSec, 0, CONFIG.duration - 0.05));
+  }
+
+  stop() {
+    if (this.sourceNode) {
+      try { this.sourceNode.stop(); } catch (e) {}
+      this.sourceNode.disconnect();
+      this.sourceNode = null;
+    }
+  }
+
+  // Export deterministic stereo WAV file
+  exportWavBlob() {
+    const raw = this.createOfflineBuffer(44100);
+    const numChannels = 2;
+    const bytesPerSample = 2;
+    const blockAlign = numChannels * bytesPerSample;
+    const dataSize = raw.totalSamples * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    const writeStr = (offset, str) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, raw.sampleRate, true);
+    view.setUint32(28, raw.sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i = 0; i < raw.totalSamples; i++) {
+      const l = Math.max(-1, Math.min(1, raw.left[i]));
+      const r = Math.max(-1, Math.min(1, raw.right[i]));
+      view.setInt16(offset, l < 0 ? l * 0x8000 : l * 0x7fff, true);
+      view.setInt16(offset + 2, r < 0 ? r * 0x8000 : r * 0x7fff, true);
+      offset += 4;
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+}
+
+// ============================================================================
+// 4. SCENE RENDERERS (6 CHAPTERS + GLOBAL MOTIF EVOLUTION)
+// ============================================================================
+class FilmRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+  }
+
+  // Master deterministic render entry point for time `t` (in seconds)
+  render(t) {
+    const ctx = this.ctx;
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const scaleRatio = W / 1920;
+
+    ctx.save();
+    ctx.scale(scaleRatio, scaleRatio);
+
+    // 1. Background & Subtle Blueprint Coordinate Field
+    this.drawBackground(ctx, t);
+
+    // 2. Dispatch active chapter
+    if (t < 13.0) {
+      this.renderPrologue(ctx, t);
+    } else if (t < 26.0) {
+      this.renderChapter1(ctx, t - 13.0, t);
+    } else if (t < 40.0) {
+      this.renderChapter2(ctx, t - 26.0, t);
+    } else if (t < 58.0) {
+      this.renderChapter3(ctx, t - 40.0, t);
+    } else if (t < 70.0) {
+      this.renderChapter4(ctx, t - 58.0, t);
+    } else {
+      this.renderEpilogue(ctx, t - 70.0, t);
+    }
+
+    // 3. Technical Telemetry Frame & Vignette
+    this.drawTelemetryOverlay(ctx, t);
+
+    ctx.restore();
+  }
+
+  drawBackground(ctx, t) {
+    ctx.fillStyle = CONFIG.colors.bg;
+    ctx.fillRect(0, 0, 1920, 1080);
+
+    // Subtle engineering grid
+    const gridSpacing = 80;
+    ctx.strokeStyle = CONFIG.colors.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= 1920; x += gridSpacing) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 1080);
+    }
+    for (let y = 0; y <= 1080; y += gridSpacing) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(1920, y);
+    }
+    ctx.stroke();
+
+    // Crosshairs at intersections
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.14)';
+    for (let x = gridSpacing; x < 1920; x += gridSpacing * 2) {
+      for (let y = gridSpacing; y < 1080; y += gridSpacing * 2) {
+        ctx.fillRect(x - 3, y - 0.5, 6, 1);
+        ctx.fillRect(x - 0.5, y - 3, 1, 6);
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // PROLOGUE (00:00 - 00:13): 有限 (FINITUDE — The 1D Monoline Ruler)
+  // --------------------------------------------------------------------------
+  renderPrologue(ctx, t) {
+    const cx = 960;
+    const cy = 540;
+    const beatPulse = MathLib.beatPulse(t, 1, 7);
+
+    // Opening 3 seconds hook: A razor-sharp amber point expands into a 24-hour scale
+    const lineExpand = MathLib.easeOutExpo(t / 1.8);
+    const halfSpan = 620 * lineExpand;
+
+    // 1. Spotlight cone of limited human attention scanning horizontally
+    const scanFreq = t < 6.0 ? 1.1 : 2.6;
+    const cursorNorm = Math.sin(t * scanFreq + Math.sin(t * 1.9) * 0.5);
+    const cursorX = cx + cursorNorm * (halfSpan * 0.85);
+    const spotlightRadius = 155 + beatPulse * 18;
+
+    // Draw out-of-reach knowledge terms in dark space, only illuminated near cursorX
+    ctx.font = '700 22px "Noto Sans SC", sans-serif';
+    ctx.textAlign = 'center';
+    DATA.isolatedTerms.forEach((term, idx) => {
+      const tx = 340 + (idx % 8) * 176 + Math.sin(idx * 2.1) * 20;
+      const ty = idx < 8 ? 330 + (idx % 2) * 55 : 700 + (idx % 2) * 55;
+      const dist = Math.hypot(tx - cursorX, ty - cy);
+      const vis = MathLib.clamp(1 - dist / 280, 0.04, 0.95) * MathLib.invLerp(1.5, 3.0, t);
+      ctx.fillStyle = `rgba(226, 232, 240, ${vis})`;
+      ctx.fillText(term, tx, ty);
+
+      if (vis > 0.35) {
+        ctx.strokeStyle = `rgba(245, 166, 35, ${vis * 0.5})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cursorX, cy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+      }
+    });
+
+    // 2. Attempt to build vertical height with a single 1D line (t = 7.5s to 11.5s)
+    let buckleOffset = 0;
+    let towerHeight = 0;
+    if (t > 7.0) {
+      const riseT = MathLib.invLerp(7.0, 10.4, t);
+      const collapseT = MathLib.easeInExpo(MathLib.invLerp(10.4, 11.2, t));
+      towerHeight = 290 * MathLib.easeOutCubic(riseT) * (1 - collapseT);
+      buckleOffset = Math.sin(t * 28) * 26 * riseT * (1 - collapseT);
+
+      // Draw unstable 1D vertical strut buckling under gravity
+      ctx.strokeStyle = CONFIG.colors.amber;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cursorX, cy);
+      ctx.quadraticCurveTo(cursorX + buckleOffset * 2.4, cy - towerHeight * 0.5, cursorX + buckleOffset, cy - towerHeight);
+      ctx.stroke();
+
+      // Fracture sparks on collapse at t = 10.5s
+      if (t >= 10.4 && t < 12.2) {
+        const dt = t - 10.4;
+        for (let i = 0; i < 18; i++) {
+          const ang = MathLib.hash(i) * Math.PI * 2;
+          const spd = 80 + MathLib.hash(i + 10) * 220;
+          const sx = cursorX + Math.cos(ang) * spd * dt;
+          const sy = cy - 120 + Math.sin(ang) * spd * dt + 260 * dt * dt;
+          ctx.fillStyle = `rgba(245, 166, 35, ${Math.max(0, 1 - dt * 0.7)})`;
+          ctx.fillRect(sx - 3, sy - 3, 6, 6);
+        }
+      }
+    }
+
+    // 3. The Core Motif: The 1D Amber Ruler (24 Hours / 1 Mind)
+    ctx.strokeStyle = CONFIG.colors.amber;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - halfSpan, cy);
+    ctx.lineTo(cx + halfSpan, cy);
+    ctx.stroke();
+
+    // Ruler ticks (00:00 to 24:00)
+    ctx.font = '500 13px "JetBrains Mono", monospace';
+    for (let h = 0; h <= 24; h++) {
+      const x = MathLib.lerp(cx - halfSpan, cx + halfSpan, h / 24);
+      const isMajor = h % 6 === 0;
+      const tickH = isMajor ? 16 : 8;
+      ctx.strokeStyle = isMajor ? CONFIG.colors.amber : 'rgba(245, 166, 35, 0.45)';
+      ctx.lineWidth = isMajor ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(x, cy - tickH);
+      ctx.lineTo(x, cy + tickH);
+      ctx.stroke();
+
+      if (isMajor && lineExpand > 0.8) {
+        ctx.fillStyle = CONFIG.colors.amber;
+        ctx.fillText(`${String(h).padStart(2, '0')}:00`, x, cy + 36);
+      }
+    }
+
+    // Active Cursor Caliper
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cursorX - 14, cy - 22, 28, 44);
+    ctx.fillStyle = 'rgba(245, 166, 35, 0.14)';
+    ctx.beginPath();
+    ctx.arc(cursorX, cy, spotlightRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Kinetic Structural Typography
+    ctx.textAlign = 'center';
+    if (t < 4.5) {
+      const a = MathLib.invLerp(0.2, 0.9, t) * (1 - MathLib.invLerp(3.8, 4.4, t));
+      ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+      ctx.font = '900 54px "Noto Sans SC", sans-serif';
+      ctx.fillText('一天 24 小时 · 一双眼睛 · 单线程注意力', cx, 210);
+    } else if (t < 8.8) {
+      const a = MathLib.invLerp(4.5, 5.1, t) * (1 - MathLib.invLerp(8.2, 8.8, t));
+      ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+      ctx.font = '900 52px "Noto Sans SC", sans-serif';
+      ctx.fillText('当你照亮一处细节，其余维度便退入盲区', cx, 210);
+    } else {
+      const a = MathLib.invLerp(8.8, 9.4, t);
+      ctx.fillStyle = `rgba(245, 166, 35, ${a})`;
+      ctx.font = '900 62px "Noto Sans SC", sans-serif';
+      ctx.fillText('一人之力，受限于单维度的孤线', cx, 210);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // CHAPTER 1 (00:13 - 00:26): 复杂 (COMPLEXITY — The 6-Axis Entangled Knot)
+  // --------------------------------------------------------------------------
+  renderChapter1(ctx, localT, globalT) {
+    const cx = 960;
+    const cy = 540;
+    const expand = MathLib.spring(localT, 10, 0.32);
+    const radius = 330 * expand;
+
+    // Draw 6 orthogonal domain axes radiating from the problem core
+    DATA.domains.forEach((dom, i) => {
+      const delay = i * 0.35;
+      const axisGrow = MathLib.easeOutExpo(MathLib.invLerp(delay, delay + 0.9, localT));
+      const ax = cx + Math.cos(dom.angle) * radius * axisGrow;
+      const ay = cy + Math.sin(dom.angle) * radius * axisGrow;
+
+      ctx.strokeStyle = 'rgba(226, 232, 240, 0.28)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(ax, ay);
+      ctx.stroke();
+
+      // Axis endpoint node & Structural Typography
+      if (axisGrow > 0.3) {
+        ctx.fillStyle = CONFIG.colors.silver;
+        ctx.beginPath();
+        ctx.arc(ax, ay, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        const labelX = cx + Math.cos(dom.angle) * (radius + 95);
+        const labelY = cy + Math.sin(dom.angle) * (radius + 55);
+        ctx.textAlign = 'center';
+        ctx.font = '900 28px "Noto Sans SC", sans-serif';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(dom.name, labelX, labelY);
+
+        ctx.font = '500 13px "JetBrains Mono", monospace';
+        ctx.fillStyle = CONFIG.colors.amber;
+        ctx.fillText(dom.metric, labelX, labelY + 24);
+      }
+    });
+
+    // The single Amber line frantically jumping between domains, leaving a tangled knot
+    const steps = Math.floor(MathLib.remap(1.5, 12.5, 3, 56, localT));
+    const points = [];
+    for (let s = 0; s < steps; s++) {
+      const domIdx = (s * 5 + Math.floor(s / 3)) % 6;
+      const dom = DATA.domains[domIdx];
+      const rRatio = 0.35 + 0.6 * MathLib.hash(s * 17);
+      const jitter = (MathLib.hash(s * 31) - 0.5) * 0.35;
+      points.push({
+        x: cx + Math.cos(dom.angle + jitter) * radius * rRatio,
+        y: cy + Math.sin(dom.angle + jitter) * radius * rRatio,
+        domIdx
+      });
+    }
+
+    // Draw the entangled knot of human context-switching cost
+    if (points.length > 1) {
+      ctx.strokeStyle = 'rgba(245, 166, 35, 0.55)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+
+      // Current frantic cursor
+      const lastPt = points[points.length - 1];
+      ctx.fillStyle = CONFIG.colors.amber;
+      ctx.beginPath();
+      ctx.arc(lastPt.x, lastPt.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Context switch penalty readout
+      const loadPct = Math.min(99.8, (steps / 52) * 100).toFixed(1);
+      ctx.font = '700 16px "JetBrains Mono", monospace';
+      ctx.fillStyle = loadPct > 85 ? CONFIG.colors.crimson : CONFIG.colors.amber;
+      ctx.fillText(`CONTEXT SWITCH OVERLOAD: ${loadPct}%`, cx, cy + 12);
+    }
+
+    // Center Problem Core Box
+    ctx.fillStyle = '#0B0E17';
+    ctx.strokeStyle = CONFIG.colors.amber;
+    ctx.lineWidth = 2.5;
+    ctx.fillRect(cx - 140, cy - 42, 280, 62);
+    ctx.strokeRect(cx - 140, cy - 42, 280, 62);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 26px "Noto Sans SC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('真实世界的复杂问题', cx, cy - 2);
+
+    // Chapter Header Headline
+    ctx.font = '900 46px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(
+      localT < 6.5
+        ? '现实问题从不按单一学科出题'
+        : '在六个陌生维度间切换，单点算力陷入死结',
+      cx,
+      105
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // CHAPTER 2 (00:26 - 00:40): 连接 (CONNECTION — Orthogonalization & Tensegrity)
+  // --------------------------------------------------------------------------
+  renderChapter2(ctx, localT, globalT) {
+    const cx = 960;
+    const cy = 550;
+
+    // Transition morph factor: 0 = tangled knot from Ch1, 1 = orthogonal 3D Tensegrity Matrix
+    const morph = MathLib.easeInOutCubic(MathLib.invLerp(0.2, 3.2, localT));
+    const rotY = localT * 0.32;
+    const rotX = 0.35 + Math.sin(localT * 0.5) * 0.12;
+
+    // Project and draw 3D nodes (interpolating from chaotic knot to Tensegrity Dome)
+    const projected = DATA.domeNodes.map((node, i) => {
+      // Chaotic start position
+      const ang = (i * 2.39996);
+      const rad = 60 + (i % 7) * 45;
+      const startX = Math.cos(ang) * rad;
+      const startY = Math.sin(ang) * rad;
+      const startZ = (MathLib.hash(i) - 0.5) * 260;
+
+      const x = MathLib.lerp(startX, node.x * 1.25, morph);
+      const y = MathLib.lerp(startY, node.y * 1.15, morph);
+      const z = MathLib.lerp(startZ, node.z * 1.25, morph);
+
+      return {
+        ...MathLib.project3D(x, y, z, rotX, rotY, 0),
+        label: node.label,
+        ring: node.ring
+      };
+    });
+
+    // Draw structural edges
+    DATA.domeEdges.forEach(([a, b, type]) => {
+      const pa = projected[a];
+      const pb = projected[b];
+      ctx.strokeStyle =
+        type === 'amber'
+          ? CONFIG.colors.amber
+          : morph > 0.5
+          ? 'rgba(0, 229, 255, 0.45)'
+          : 'rgba(245, 166, 35, 0.35)';
+      ctx.lineWidth = type === 'amber' ? 2.6 : 1.4;
+      ctx.beginPath();
+      ctx.moveTo(cx + pa.px, cy + pa.py);
+      ctx.lineTo(cx + pb.px, cy + pb.py);
+      ctx.stroke();
+    });
+
+    // Draw nodes and Structural Chinese Typography along the beams
+    projected.forEach((p, idx) => {
+      const sx = cx + p.px;
+      const sy = cy + p.py;
+      const isCore = idx === 0;
+
+      ctx.fillStyle = isCore ? CONFIG.colors.amber : CONFIG.colors.cyan;
+      ctx.beginPath();
+      ctx.arc(sx, sy, isCore ? 9 : 4.5 * p.scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (morph > 0.55 && idx % 3 === 0) {
+        ctx.font = `700 ${Math.round(15 * p.scale)}px "Noto Sans SC", sans-serif`;
+        ctx.fillStyle = isCore ? CONFIG.colors.amber : 'rgba(226, 232, 240, 0.88)';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.label, sx, sy - 12 * p.scale);
+      }
+    });
+
+    // Human Amber Vector Axis driving the center of the dome
+    const topP = MathLib.project3D(0, -280, 0, rotX, rotY, 0);
+    const botP = MathLib.project3D(0, 240, 0, rotX, rotY, 0);
+    ctx.strokeStyle = CONFIG.colors.amber;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx + botP.px, cy + botP.py);
+    ctx.lineTo(cx + topP.px, cy + topP.py);
+    ctx.stroke();
+
+    // Kinetic Headlines
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 48px "Noto Sans SC", sans-serif';
+    if (localT < 6.5) {
+      ctx.fillText('AI 不是替代思考的大脑，而是正交解耦的几何场', cx, 105);
+    } else {
+      ctx.fillText('文字化作承重结构 · 孤立的线展开为协同空间', cx, 105);
+    }
+
+    ctx.font = '500 16px "JetBrains Mono", monospace';
+    ctx.fillStyle = CONFIG.colors.cyan;
+    ctx.fillText(
+      `ORTHOGONAL DECOMPOSITION // RANK: 6 // RESIDUAL: ${(Math.exp(-localT * 0.7)).toFixed(5)}`,
+      cx,
+      148
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // CHAPTER 3 (00:40 - 00:58): 突破 (BREAKTHROUGH — 4 Concrete Capabilities)
+  // --------------------------------------------------------------------------
+  renderChapter3(ctx, localT, globalT) {
+    // 4 Concrete visual demonstrations, 4.5 seconds (9 beats) each, plus simultaneous 4-quadrant synthesis
+    const stageIdx = Math.min(3, Math.floor(localT / 4.5));
+    const stageT = localT - stageIdx * 4.5;
+
+    // Header
+    const titles = [
+      '01 / 跨域知识映射：从海量文献孤岛到结构化拓扑树',
+      '02 / 算法与程序构建：让自然语言意图编译为可执行逻辑',
+      '03 / 数学建模与千次仿真：在几秒内遍历参数包络线',
+      '04 / 图表升维空间：从抽象构想到可验证的工程实体'
+    ];
+    ctx.textAlign = 'left';
+    ctx.font = '900 38px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(titles[stageIdx], 120, 105);
+
+    ctx.font = '600 15px "JetBrains Mono", monospace';
+    ctx.fillStyle = CONFIG.colors.amber;
+    ctx.fillText(`CAPABILITY EXPANSION [0${stageIdx + 1}/04] // SPEEDUP: 120x`, 120, 140);
+
+    // Stage Frame Box
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(120, 170, 1680, 760);
+
+    if (stageIdx === 0) {
+      // 01: Literature & Knowledge Graph Clustering
+      const clusterP = MathLib.easeInOutCubic(MathLib.invLerp(0.3, 2.8, stageT));
+      const hubs = [
+        { x: 480, y: 420, title: '空气动力学' },
+        { x: 960, y: 360, title: '拓扑优化算法' },
+        { x: 1440, y: 420, title: '超高性能混凝土' },
+        { x: 960, y: 710, title: '桥梁主梁综合方案' }
+      ];
+      for (let i = 0; i < 64; i++) {
+        const hub = hubs[i % 3];
+        const randX = 180 + MathLib.hash(i * 11) * 1560;
+        const randY = 220 + MathLib.hash(i * 23) * 660;
+        const ang = (i / 21) * Math.PI * 2;
+        const targetX = hub.x + Math.cos(ang) * (75 + (i % 3) * 32);
+        const targetY = hub.y + Math.sin(ang) * (75 + (i % 3) * 32);
+
+        const px = MathLib.lerp(randX, targetX, clusterP);
+        const py = MathLib.lerp(randY, targetY, clusterP);
+
+        if (clusterP > 0.25) {
+          ctx.strokeStyle = `rgba(0, 229, 255, ${clusterP * 0.35})`;
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(hub.x, hub.y);
+          ctx.stroke();
+        }
+        ctx.fillStyle = i % 5 === 0 ? CONFIG.colors.amber : CONFIG.colors.cyan;
+        ctx.fillRect(px - 3, py - 3, 6, 6);
+      }
+      // Hub connections to synthesis node
+      hubs.slice(0, 3).forEach((h) => {
+        ctx.strokeStyle = CONFIG.colors.amber;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(h.x, h.y);
+        ctx.lineTo(
+          MathLib.lerp(h.x, hubs[3].x, clusterP),
+          MathLib.lerp(h.y, hubs[3].y, clusterP)
+        );
+        ctx.stroke();
+      });
+      hubs.forEach((h, idx) => {
+        ctx.fillStyle = '#07080C';
+        ctx.strokeStyle = idx === 3 ? CONFIG.colors.amber : CONFIG.colors.cyan;
+        ctx.lineWidth = 2.5;
+        ctx.fillRect(h.x - 110, h.y - 26, 220, 52);
+        ctx.strokeRect(h.x - 110, h.y - 26, 220, 52);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '800 22px "Noto Sans SC", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(h.title, h.x, h.y + 8);
+      });
+    } else if (stageIdx === 1) {
+      // 02: Algorithmic AST & Procedural Code Architecture
+      const codeLines = [
+        'function solveBridgeTopology(span, windLoad, material) {',
+        '  const mesh = discretizeDomain(span, { elements: 4096 });',
+        '  for (let iter = 0; iter < MAX_ITER; iter++) {',
+        '    const K = assembleStiffnessMatrix(mesh, material.E);',
+        '    const u = conjugateGradientSolve(K, windLoad);',
+        '    mesh.updateDensity(sensitivityFilter(u));',
+        '  }',
+        '  return verifySafetyFactor(mesh);',
+        '}'
+      ];
+      ctx.textAlign = 'left';
+      ctx.font = '600 22px "JetBrains Mono", monospace';
+      codeLines.forEach((line, idx) => {
+        const appear = MathLib.invLerp(idx * 0.25, idx * 0.25 + 0.5, stageT);
+        ctx.fillStyle = `rgba(0, 229, 255, ${appear})`;
+        ctx.fillText(line, 180, 290 + idx * 58);
+
+        // Morphing each code line into a structural logic gate on the right side
+        if (appear > 0.3) {
+          const gx = 1260 + (idx % 2) * 220;
+          const gy = 280 + idx * 58;
+          ctx.strokeStyle = `rgba(245, 166, 35, ${appear * 0.8})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(960, 282 + idx * 58);
+          ctx.lineTo(gx - 70, gy);
+          ctx.stroke();
+
+          ctx.fillStyle = '#0D1320';
+          ctx.fillRect(gx - 70, gy - 20, 140, 38);
+          ctx.strokeRect(gx - 70, gy - 20, 140, 38);
+          ctx.fillStyle = CONFIG.colors.amber;
+          ctx.font = '700 14px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`NODE_0${idx + 1} [OK]`, gx, gy + 4);
+          ctx.textAlign = 'left';
+          ctx.font = '600 22px "JetBrains Mono", monospace';
+        }
+      });
+    } else if (stageIdx === 2) {
+      // 03: Mathematical Relationship becomes Motion (Parametric Wave & Stress Envelope)
+      const iterCount = Math.floor(MathLib.remap(0, 4.2, 1, 1024, stageT));
+      ctx.textAlign = 'left';
+      ctx.font = '700 24px "JetBrains Mono", monospace';
+      ctx.fillStyle = CONFIG.colors.cyan;
+      ctx.fillText(`ITERATION: #${String(iterCount).padStart(4, '0')} // ∂²u/∂t² = c²∇²u - γ∂u/∂t`, 180, 250);
+
+      // Draw 18 parallel simulation curves converging to the golden catenary arch
+      for (let c = 0; c < 18; c++) {
+        const isOptimal = c === 17;
+        const conv = MathLib.easeOutCubic(MathLib.invLerp(0.2, 3.6, stageT));
+        ctx.strokeStyle = isOptimal
+          ? CONFIG.colors.amber
+          : `rgba(0, 229, 255, ${0.12 + (c / 18) * 0.25})`;
+        ctx.lineWidth = isOptimal ? 4 : 1.5;
+        ctx.beginPath();
+        for (let x = 200; x <= 1720; x += 16) {
+          const norm = (x - 960) / 760; // [-1, 1]
+          const optimalArch = -260 * (1 - norm * norm);
+          const harmonicNoise =
+            Math.sin(norm * Math.PI * (2 + (c % 5)) + stageT * 6 + c) *
+            140 *
+            (1 - conv);
+          const y = 740 + optimalArch + (isOptimal ? 0 : harmonicNoise);
+          if (x === 200) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.fillStyle = CONFIG.colors.amber;
+      ctx.font = '900 28px "Noto Sans SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('最优受力抛物线包络（收敛耗时 1.8 秒）', 960, 430);
+    } else {
+      // 04: Chart becomes 3D Space (2D Arch Extrudes into 3D Parametric Truss Bridge)
+      const extrude = MathLib.easeInOutCubic(MathLib.invLerp(0.1, 3.2, stageT));
+      const rotY = -0.45 * extrude + Math.sin(stageT) * 0.08;
+      const rotX = 0.28 * extrude;
+      const cx = 960;
+      const cy = 580;
+
+      const segments = 16;
+      const bridgePts = [];
+      for (let i = 0; i <= segments; i++) {
+        const u = (i / segments) * 2 - 1; // [-1, 1]
+        const x = u * 640;
+        const archY = -220 * (1 - u * u);
+        const deckY = 40;
+        const zSpan = 110 * extrude;
+        bridgePts.push({
+          topF: MathLib.project3D(x, archY, -zSpan, rotX, rotY, 0),
+          topB: MathLib.project3D(x, archY, zSpan, rotX, rotY, 0),
+          botF: MathLib.project3D(x, deckY, -zSpan, rotX, rotY, 0),
+          botB: MathLib.project3D(x, deckY, zSpan, rotX, rotY, 0)
+        });
+      }
+
+      // Render 3D bridge truss members
+      for (let i = 0; i <= segments; i++) {
+        const p = bridgePts[i];
+        // Verticals & transverse
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.55)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(cx + p.topF.px, cy + p.topF.py);
+        ctx.lineTo(cx + p.botF.px, cy + p.botF.py);
+        ctx.moveTo(cx + p.topB.px, cy + p.topB.py);
+        ctx.lineTo(cx + p.botB.px, cy + p.botB.py);
+        ctx.moveTo(cx + p.topF.px, cy + p.topF.py);
+        ctx.lineTo(cx + p.topB.px, cy + p.topB.py);
+        ctx.moveTo(cx + p.botF.px, cy + p.botF.py);
+        ctx.lineTo(cx + p.botB.px, cy + p.botB.py);
+        ctx.stroke();
+
+        if (i < segments) {
+          const n = bridgePts[i + 1];
+          // Main Amber Arch & Cyan Deck
+          ctx.strokeStyle = CONFIG.colors.amber;
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.moveTo(cx + p.topF.px, cy + p.topF.py);
+          ctx.lineTo(cx + n.topF.px, cy + n.topF.py);
+          ctx.moveTo(cx + p.topB.px, cy + p.topB.py);
+          ctx.lineTo(cx + n.topB.px, cy + n.topB.py);
+          ctx.stroke();
+
+          ctx.strokeStyle = CONFIG.colors.silver;
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(cx + p.botF.px, cy + p.botF.py);
+          ctx.lineTo(cx + n.botF.px, cy + n.botF.py);
+          ctx.moveTo(cx + p.botB.px, cy + p.botB.py);
+          ctx.lineTo(cx + n.botB.px, cy + n.botB.py);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // CHAPTER 4 (00:58 - 01:10): 判断 (JUDGMENT — AI Hallucination & Human Audit)
+  // --------------------------------------------------------------------------
+  renderChapter4(ctx, localT, globalT) {
+    const cx = 960;
+    const cy = 560;
+
+    // Phase 1 (0 - 3.5s): AI generates an over-optimistic, structurally flawed cantilever node
+    // Phase 2 (3.5 - 5.5s): HARD STOP! Human Amber Caliper locks onto the crimson flaw
+    // Phase 3 (5.5 - 12.0s): Flaw purged, human sets anchor, structure re-converges safely
+    const isGlitching = localT < 3.5;
+    const isCalibrating = localT >= 3.5 && localT < 6.0;
+    const fixProgress = MathLib.easeInOutCubic(MathLib.invLerp(5.2, 8.2, localT));
+
+    const segments = 14;
+    const nodes = [];
+    for (let i = 0; i <= segments; i++) {
+      const u = (i / segments) * 2 - 1;
+      const x = cx + u * 680;
+      let archY = cy - 240 * (1 - u * u);
+
+      // Intentional AI Hallucination at node i = 10 (impossible floating spike)
+      if (i === 10) {
+        const flawOffset = -175 * (1 - fixProgress);
+        const glitchJitter = isGlitching ? Math.sin(localT * 55) * 16 : 0;
+        archY += flawOffset + glitchJitter;
+      }
+      nodes.push({ x, archY, deckY: cy + 90, isFlaw: i === 10 });
+    }
+
+    // Draw truss structure
+    for (let i = 0; i < segments; i++) {
+      const a = nodes[i];
+      const b = nodes[i + 1];
+      const hasFlaw = (a.isFlaw || b.isFlaw) && fixProgress < 0.95;
+
+      ctx.strokeStyle = hasFlaw ? CONFIG.colors.crimson : CONFIG.colors.cyan;
+      ctx.lineWidth = hasFlaw ? 4 : 2.5;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.archY);
+      ctx.lineTo(b.x, b.archY);
+      ctx.stroke();
+
+      // Verticals & Diagonals
+      ctx.strokeStyle = hasFlaw ? 'rgba(255, 42, 84, 0.7)' : 'rgba(226, 232, 240, 0.35)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.archY);
+      ctx.lineTo(a.x, a.deckY);
+      ctx.lineTo(b.x, b.archY);
+      ctx.stroke();
+    }
+
+    // Highlight the Flawed Node & Human Caliper Intervention
+    const flawNode = nodes[10];
+    if (fixProgress < 0.99) {
+      ctx.strokeStyle = CONFIG.colors.crimson;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(flawNode.x - 45, flawNode.archY - 45, 90, 90);
+
+      ctx.fillStyle = CONFIG.colors.crimson;
+      ctx.font = '800 18px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('! AI HALLUCINATION DETECTED', flawNode.x + 60, flawNode.archY - 15);
+      ctx.fillText('SAFETY FACTOR: 0.41 < 1.00 [UNSTABLE]', flawNode.x + 60, flawNode.archY + 12);
+    }
+
+    // Human Amber Caliper descending to inspect and push the node back to physical reality
+    if (localT >= 3.2) {
+      const caliperIn = MathLib.easeOutExpo(MathLib.invLerp(3.2, 4.2, localT));
+      const calX = flawNode.x;
+      const calY = flawNode.archY;
+
+      // Amber Laser Plumb Line across the whole screen
+      ctx.strokeStyle = CONFIG.colors.amber;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(calX, 160);
+      ctx.lineTo(calX, 920);
+      ctx.stroke();
+
+      // Precision Caliper Jaws
+      const jawSpread = 55 * (1 - 0.5 * caliperIn);
+      ctx.fillStyle = CONFIG.colors.amber;
+      ctx.fillRect(calX - 40, calY - jawSpread - 8, 80, 8);
+      ctx.fillRect(calX - 40, calY + jawSpread, 80, 8);
+
+      ctx.font = '900 22px "Noto Sans SC", sans-serif';
+      ctx.fillStyle = CONFIG.colors.amber;
+      ctx.textAlign = 'right';
+      ctx.fillText(
+        fixProgress < 0.8 ? '人工核验介入：重设物理边界约束' : '修正完毕：安全系数 2.45 [PASS]',
+        calX - 24,
+        calY - 60
+      );
+    }
+
+    // Chapter Headline
+    ctx.textAlign = 'center';
+    ctx.font = '900 48px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = isGlitching ? CONFIG.colors.crimson : '#FFFFFF';
+    ctx.fillText(
+      localT < 3.5
+        ? '但算力并非真理：AI 也会编造看似合理的幻觉'
+        : 'AI 提供一万种可能，人类决定哪一种成立',
+      cx,
+      105
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // EPILOGUE (01:10 - 01:24): 可能性 (POSSIBILITY — The Keystone & Grand Dome)
+  // --------------------------------------------------------------------------
+  renderEpilogue(ctx, localT, globalT) {
+    const cx = 960;
+    const cy = 540;
+
+    // The 1D Amber line from the Prologue now stands at the center as the Keystone Compass,
+    // while the entire Tensegrity Geodesic Cathedral blossoms around it.
+    const blossom = MathLib.easeOutCubic(MathLib.invLerp(0, 4.5, localT));
+    const rotY = localT * 0.22;
+    const rotX = 0.25 - MathLib.invLerp(0, 8, localT) * 0.15;
+
+    const projected = DATA.domeNodes.map((n) => {
+      const radScale = 1.65 * blossom;
+      return MathLib.project3D(n.x * radScale, n.y * radScale, n.z * radScale, rotX, rotY, 0);
+    });
+
+    // Draw cathedral edges
+    DATA.domeEdges.forEach(([a, b, type]) => {
+      const pa = projected[a];
+      const pb = projected[b];
+      ctx.strokeStyle =
+        type === 'amber'
+          ? 'rgba(245, 166, 35, 0.85)'
+          : 'rgba(0, 229, 255, 0.32)';
+      ctx.lineWidth = type === 'amber' ? 2.5 : 1.3;
+      ctx.beginPath();
+      ctx.moveTo(cx + pa.px, cy + pa.py);
+      ctx.lineTo(cx + pb.px, cy + pb.py);
+      ctx.stroke();
+    });
+
+    projected.forEach((p, i) => {
+      ctx.fillStyle = i === 0 ? CONFIG.colors.amber : '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(cx + p.px, cy + p.py, i === 0 ? 10 : 3.5 * p.scale, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // The Transformed Motif: The Luminous Amber Compass Axis
+    ctx.strokeStyle = CONFIG.colors.amber;
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 560, cy);
+    ctx.lineTo(cx + 560, cy);
+    ctx.stroke();
+
+    // Final Penetrating Statements
+    const fadeFinal = MathLib.invLerp(4.5, 6.2, localT);
+    if (fadeFinal > 0) {
+      ctx.fillStyle = `rgba(7, 8, 12, ${fadeFinal * 0.76})`;
+      ctx.fillRect(0, 350, 1920, 380);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = `rgba(245, 166, 35, ${fadeFinal})`;
+      ctx.font = '700 22px "JetBrains Mono", monospace';
+      ctx.fillText('BEYOND THE REACH OF A SINGLE MIND', cx, 425);
+
+      ctx.fillStyle = `rgba(255, 255, 255, ${fadeFinal})`;
+      ctx.font = '900 74px "Noto Sans SC", sans-serif';
+      ctx.fillText('超出一人之力，始于一人之志', cx, 525);
+
+      const subAlpha = MathLib.invLerp(7.2, 8.8, localT);
+      ctx.fillStyle = `rgba(226, 232, 240, ${subAlpha})`;
+      ctx.font = '500 30px "Noto Sans SC", sans-serif';
+      ctx.fillText(
+        '当智能不再受限于单一头脑，你的边界，只取决于你敢向世界提出什么问题。',
+        cx,
+        615
+      );
+    } else {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 50px "Noto Sans SC", sans-serif';
+      ctx.fillText('AI 扩展了行动的半径，而你，握着方向的罗盘', cx, 105);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // GLOBAL TELEMETRY & FILM FRAME OVERLAY
+  // --------------------------------------------------------------------------
+  drawTelemetryOverlay(ctx, t) {
+    const frame = Math.round(t * CONFIG.fps);
+    const beat = Math.floor(t / CONFIG.spb);
+    const chap = CHAPTERS.find((c) => t >= c.start && t < c.end) || CHAPTERS[CHAPTERS.length - 1];
+
+    ctx.font = '500 13px "JetBrains Mono", monospace';
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText(`BEYOND_ONE // ${chap.name}`, 48, 42);
+
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      `TC ${String(Math.floor(t / 60)).padStart(2, '0')}:${(t % 60).toFixed(2).padStart(5, '0')} // FR ${String(frame).padStart(4, '0')} // BEAT ${String(beat).padStart(3, '0')}`,
+      1920 - 48,
+      42
+    );
+
+    // Bottom progress hair-line
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.fillRect(48, 1044, 1920 - 96, 2);
+    ctx.fillStyle = CONFIG.colors.amber;
+    ctx.fillRect(48, 1044, (1920 - 96) * (t / CONFIG.duration), 2);
+  }
+}
+
+// ============================================================================
+// 5. TRANSPORT CONTROLLER, DETERMINISTIC HOOK & IN-BROWSER VIDEO EXPORTER
+// ============================================================================
+const canvas = document.getElementById('film-canvas');
+const renderer = new FilmRenderer(canvas);
+const soundtrack = new ProceduralSoundtrack();
+
+let isPlaying = false;
+let currentTime = 0;
+let startWallTime = 0;
+let rafId = null;
+
+const scrubber = document.getElementById('scrubber');
+const timeDisplay = document.getElementById('time-display');
+const frameDisplay = document.getElementById('frame-display');
+const beatReadout = document.getElementById('beat-readout');
+const chapReadout = document.getElementById('chap-readout');
+const btnToggle = document.getElementById('btn-toggle');
+const overlayStart = document.getElementById('overlay-start');
+
+function updateHUD(t) {
+  const frame = Math.min(CONFIG.totalFrames, Math.round(t * CONFIG.fps));
+  scrubber.value = frame;
+  const mins = String(Math.floor(t / 60)).padStart(2, '0');
+  const secs = (t % 60).toFixed(2).padStart(5, '0');
+  timeDisplay.textContent = `${mins}:${secs} / 01:24.00`;
+  frameDisplay.textContent = `FRAME ${String(frame).padStart(4, '0')} / ${CONFIG.totalFrames}`;
+  beatReadout.textContent = String(Math.floor(t / CONFIG.spb)).padStart(3, '0');
+  const chap = CHAPTERS.find((c) => t >= c.start && t < c.end) || CHAPTERS[CHAPTERS.length - 1];
+  chapReadout.textContent = chap.id;
+}
+
+function seekToTime(t) {
+  currentTime = MathLib.clamp(t, 0, CONFIG.duration);
+  renderer.render(currentTime);
+  updateHUD(currentTime);
+}
+
+// Expose deterministic frame hook for headless Puppeteer + FFmpeg pipeline
+window.__renderFrame = function (frameIndex) {
+  isPlaying = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  overlayStart.classList.add('hidden');
+  const t = frameIndex / CONFIG.fps;
+  seekToTime(t);
+  return true;
+};
+
+function tick() {
+  if (!isPlaying) return;
+  const now = performance.now();
+  currentTime = (now - startWallTime) / 1000;
+  if (currentTime >= CONFIG.duration) {
+    seekToTime(CONFIG.duration);
+    pause();
+    return;
+  }
+  renderer.render(currentTime);
+  updateHUD(currentTime);
+  rafId = requestAnimationFrame(tick);
+}
+
+function play() {
+  overlayStart.classList.add('hidden');
+  if (currentTime >= CONFIG.duration) currentTime = 0;
+  isPlaying = true;
+  btnToggle.textContent = 'PAUSE';
+  startWallTime = performance.now() - currentTime * 1000;
+  soundtrack.playFrom(currentTime);
+  rafId = requestAnimationFrame(tick);
+}
+
+function pause() {
+  isPlaying = false;
+  btnToggle.textContent = 'PLAY';
+  soundtrack.stop();
+  if (rafId) cancelAnimationFrame(rafId);
+}
+
+// Initial static frame render
+seekToTime(2.2);
+
+document.getElementById('btn-init-play').addEventListener('click', () => {
+  seekToTime(0);
+  play();
+});
+
+btnToggle.addEventListener('click', () => (isPlaying ? pause() : play()));
+
+document.getElementById('btn-restart').addEventListener('click', () => {
+  pause();
+  seekToTime(0);
+  play();
+});
+
+scrubber.addEventListener('input', (e) => {
+  const wasPlaying = isPlaying;
+  if (wasPlaying) pause();
+  seekToTime(Number(e.target.value) / CONFIG.fps);
+});
+
+document.querySelectorAll('.scene-jump').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const sec = Number(btn.dataset.sec);
+    const wasPlaying = isPlaying;
+    pause();
+    seekToTime(sec);
+    if (wasPlaying) play();
+  });
+});
+
+// Toggle 1080p / True 4K (3840x2160)
+let is4K = false;
+document.getElementById('btn-res').addEventListener('click', (e) => {
+  is4K = !is4K;
+  canvas.width = is4K ? 3840 : 1920;
+  canvas.height = is4K ? 2160 : 1080;
+  e.target.textContent = is4K ? '4K (3840×2160)' : '1080P (切换 4K)';
+  e.target.classList.toggle('active', is4K);
+  renderer.render(currentTime);
+});
+
+// Export lossless WAV soundtrack
+document.getElementById('btn-export-wav').addEventListener('click', () => {
+  const blob = soundtrack.exportWavBlob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'beyond-one-soundtrack-120bpm.wav';
+  a.click();
+});
+
+// In-Browser Video Recording & Export
+document.getElementById('btn-export-video').addEventListener('click', (e) => {
+  const btn = e.target;
+  pause();
+  seekToTime(0);
+  play();
+
+  const canvasStream = canvas.captureStream(60);
+  const audioTracks = soundtrack.destStream ? soundtrack.destStream.stream.getAudioTracks() : [];
+  const combined = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
+
+  const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+    ? 'video/mp4;codecs=avc1'
+    : 'video/webm;codecs=vp9';
+  const recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 18_000_000 });
+  const chunks = [];
+  recorder.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.push(ev.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = mime.includes('mp4') ? 'beyond-one-1080p60.mp4' : 'beyond-one-1080p60.webm';
+    a.click();
+    btn.textContent = '● 录制并导出视频 (.webm/.mp4)';
+  };
+  recorder.start();
+  btn.textContent = '● 正在录制全片 (点击暂停即刻完成下载)...';
+
+  const checkStop = setInterval(() => {
+    if (!isPlaying) {
+      clearInterval(checkStop);
+      if (recorder.state === 'recording') recorder.stop();
+    }
+  }, 200);
+});
+</script>
+</body>
+</html>

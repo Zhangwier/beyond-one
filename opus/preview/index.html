@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>超出一人之力 · preview</title>
+<style>
+html,body{margin:0;background:#000;height:100%;overflow:hidden}
+canvas{position:absolute;inset:0;margin:auto;max-width:100vw;max-height:100vh;aspect-ratio:16/9;width:100vw;height:auto}
+#hud{position:fixed;left:12px;bottom:10px;font:12px/1.2 ui-monospace,monospace;color:#aaa;background:#0008;padding:4px 8px}
+#help{position:fixed;right:12px;bottom:10px;font:11px ui-monospace,monospace;color:#777}
+</style></head>
+<body><canvas id="c"></canvas><div id="hud"></div>
+<div id="help">space 播放 · ←/→ ±1s · ,/. 逐帧 · [ ] 场景 · l 循环 · h 隐藏</div>
+<script type="module" src="bundle.js"></script></body></html>

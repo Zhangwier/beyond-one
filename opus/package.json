@@ -1,0 +1,25 @@
+{
+  "name": "beyond-one",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "synth": "tsx scripts/synth.ts",
+    "stills": "tsx scripts/render.ts stills",
+    "sheet": "tsx scripts/render.ts sheet",
+    "render": "tsx scripts/render.ts video",
+    "build": "esbuild preview/main.ts --bundle --format=esm --outfile=preview/bundle.js",
+    "preview": "npm run build && python3 -m http.server 5173"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.11",
+    "esbuild": "^0.28.2",
+    "opentype.js": "^2.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "type": "module"
+}

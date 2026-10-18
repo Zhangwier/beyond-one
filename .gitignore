@@ -1,0 +1,36 @@
+# 依赖与产物
+node_modules/
+*.log
+npm-debug.log*
+
+# 字体（OFL 可变字体，体积约 42 MB，不入库）
+# 只排除目录内容，保留目录与其中的获取脚本
+fonts/*
+opus/fonts/*
+!opus/fonts/fetch-fonts.sh
+
+# 渲染产物：成片、音频母版、帧序列、联系表
+# 注意：out/ 里保留字幕（.srt），它是可提交的文本资产
+out/*
+!out/*.srt
+audio/score.wav
+*.mp4
+*.webm
+*.mov
+*.mkv
+*.wav
+
+# 构建缓存
+.cache/
+dist/
+*.tsbuildinfo
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 本地保留区：B 站投稿产物、原始渲染成片，不公开
+_local/

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>超出一人之力 — a code-rendered film</title>
+<style>
+  html, body { margin:0; height:100%; background:#0b0a09; overflow:hidden; }
+  #stage { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  #c { display:block; width:min(100vw, 177.7vh); height:auto; image-rendering:auto; }
+  #hud { position:fixed; left:14px; bottom:12px; font:12px/1.5 ui-monospace, monospace; color:#8b8276;
+         letter-spacing:.06em; pointer-events:none; user-select:none; transition:opacity .25s; }
+  #hud b { color:#d8cdb9; font-weight:500; }
+  #bar { position:fixed; left:0; bottom:0; height:2px; width:0%; background:#b7351f; opacity:.7; }
+  #err { position:fixed; inset:0; padding:32px; background:#1a0f0c; color:#e8b9a0;
+         font:13px/1.45 ui-monospace, monospace; white-space:pre-wrap; overflow:auto; display:none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="hud"><b>超出一人之力</b> · t=<b id="tt">0.00</b>s · <span id="nm"></span> · <span id="fps"></span></div>
+<div id="bar"></div>
+<div id="err"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

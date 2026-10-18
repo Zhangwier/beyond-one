@@ -1,0 +1,19 @@
+{
+  "name": "beyond-one",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "超出一人之力 — a code-rendered motion-graphics film about why we use AI. Deterministic WebGL2 pipeline, procedurally synthesized score.",
+  "scripts": {
+    "serve": "node tools/serve.mjs 5177",
+    "score": "node tools/score.mjs",
+    "stills": "node tools/capture.mjs stills",
+    "sheet": "node tools/capture.mjs sheet",
+    "clip": "node tools/capture.mjs clip",
+    "film": "node tools/capture.mjs film",
+    "build": "node tools/build.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.56.0"
+  }
+}
